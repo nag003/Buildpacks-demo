@@ -69,7 +69,7 @@ jobs:
         
       - name: Deploy to KIND
         run: |
-          kubectl create deployment buildpacks-demo --image=buildpacks-nodejs-app:${{ env.IMAGE_TAG }} --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create deployment buildpacks-demo --image=buildpacks-nodejs-app:${{ env.IMAGE_TAG }}
           kubectl set image deployment/buildpacks-demo buildpacks-demo=buildpacks-nodejs-app:${{ env.IMAGE_TAG }}
           kubectl expose deployment buildpacks-demo --type=NodePort --port=3000
           kubectl get pods -o wide
