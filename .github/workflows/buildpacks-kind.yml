@@ -70,11 +70,7 @@ jobs:
       - name: Deploy to KIND
         run: |
           kubectl create deployment buildpacks-nodejs-app --image=buildpacks-nodejs-app:${{ env.IMAGE_TAG }}
-<<<<<<< HEAD
-          kubectl set image deployment/buildpacks-nodejs-app buildpacks-demo=buildpacks-nodejs-app:${{ env.IMAGE_TAG }}
-=======
           kubectl set image deployment/buildpacks-nodejs-app buildpacks-nodejs-app=buildpacks-nodejs-app:${{ env.IMAGE_TAG }}
->>>>>>> 14e9c34 (updated kind workflow yaml to fix the pod image tag issues)
           kubectl expose deployment buildpacks-nodejs-app --type=NodePort --port=3000
           kubectl get pods -o wide
           kubectl get deployments -o wide
