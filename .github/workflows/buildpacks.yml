@@ -16,7 +16,7 @@ jobs:
         
       - name: Install Pack CLI
         run: |
-          curl -sSL "https://github.com/buildpacks/pack/releases/latest/download/pack-linux-amd64.tgz" | tar -xz -C /usr/local/bin
+          curl -sSL "https://github.com/buildpacks/pack/releases/download/v0.36.4/pack-v0.36.4-linux.tgz" | sudo tar -C /usr/local/bin/ --no-same-owner -xzv pack
           pack --version
           
       - name: Build Image Using BuildPacks
