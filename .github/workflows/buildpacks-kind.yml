@@ -51,7 +51,10 @@ jobs:
           pack build buildpacks-nodejs-app:${{ env.SHA_TAG }} --builder paketobuildpacks/builder:base
 
       - name: Log Docker Image Details
-        run: docker images
+        run: docker images | grep buildpacks-demo
+
+      - name: Load image into KIND cluster
+        run: kind load docker-image buildpacks-nodejs-app:latest --name buildpacks-test
 
       - name: Run the Container Locally
         run: |
@@ -63,10 +66,7 @@ jobs:
 
       - name: Stop and Remove Test Container
         run: docker rm -f test-container
-
-      - name: Load image into KIND cluster
-        run: kind load docker-image buildpacks-nodejs-app:${{ env.IMAGE_TAG }} --name buildpacks-test
-
+        
       - name: Deploy to KIND
         run: |
           kubectl create deployment buildpacks-nodejs-app --image=buildpacks-nodejs-app:${{ env.IMAGE_TAG }}
@@ -75,14 +75,14 @@ jobs:
           kubectl get deployments -o wide
           kubectl describe deployment buildpacks-nodejs-app
           
-      - name: Fetch Pod Logs
-        run: |
+      #- name: Fetch Pod Logs
+        #run: |
           POD_NAME=$(kubectl get pods --selector=app=buildpacks-nodejs-app -o jsonpath="{.items[0].metadata.name}")
           kubectl logs $POD_NAME
 
 
-      #- name: Wait for Deployment
-        #run: kubectl wait --for=condition=available --timeout=80s deployment/buildpacks-nodejs-app
+      - name: Wait for Deployment
+        run: kubectl wait --for=condition=available --timeout=80s deployment/buildpacks-nodejs-app
 
       - name: Test the Application
         run: |
