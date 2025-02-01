@@ -77,8 +77,8 @@ jobs:
           
       #- name: Fetch Pod Logs
         #run: |
-          POD_NAME=$(kubectl get pods --selector=app=buildpacks-nodejs-app -o jsonpath="{.items[0].metadata.name}")
-          kubectl logs $POD_NAME
+          #POD_NAME=$(kubectl get pods --selector=app=buildpacks-nodejs-app -o jsonpath="{.items[0].metadata.name}")
+          #kubectl logs $POD_NAME
 
 
       - name: Wait for Deployment
