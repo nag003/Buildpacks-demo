@@ -1,0 +1,83 @@
+name: Buildpacks Test with KIND
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test-buildpacks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Buildpacks Sample Repo
+        run: |
+          git clone https://github.com/buildpacks/samples.git
+          cd samples/apps/nodejs
+          ls -la
+
+      - name: Install Pack CLI
+        run: |
+          curl -sSL "https://github.com/buildpacks/pack/releases/download/v0.36.4/pack-v0.36.4-linux.tgz" | sudo tar -C /usr/local/bin/ --no-same-owner -xzv pack
+          pack --version
+
+      - name: Install Docker
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker.io
+          sudo systemctl start docker
+          sudo systemctl enable docker
+
+      - name: Build Image Using Buildpacks
+        run: |
+          cd samples/apps/nodejs
+          pack build buildpacks-sample --builder paketobuildpacks/builder:base
+
+      - name: Run Container in Docker
+        run: |
+          docker run -d --name test-container -p 3000:3000 buildpacks-sample
+          sleep 5
+          docker logs test-container
+          
+      - name: Test Container Output
+        run: |
+          curl -s http://localhost:3000 | tee output.txt
+          if grep -q "Hello from Buildpacks" output.txt; then
+            echo "✅ Buildpacks Test Passed"
+          else
+            echo "❌ Test Failed"; exit 1
+          fi
+
+      - name: Install KIND
+        run: |
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/latest/kind-linux-amd64
+          chmod +x ./kind
+          sudo mv ./kind /usr/local/bin/kind
+          kind --version
+
+      - name: Create KIND Cluster
+        run: kind create cluster --name buildpacks-test
+
+      - name: Load Image into KIND
+        run: kind load docker-image buildpacks-sample --name buildpacks-test
+
+      - name: Deploy to KIND
+        run: |
+          kubectl create deployment buildpacks-sample --image=buildpacks-sample
+          kubectl expose deployment buildpacks-sample --type=NodePort --port=3000
+
+      - name: Wait for Deployment to be Ready
+        run: kubectl rollout status deployment/buildpacks-sample --timeout=60s
+
+      - name: Test KIND Deployment
+        run: |
+          kubectl port-forward svc/buildpacks-sample 3000:3000 &
+          sleep 5
+          curl -s http://localhost:3000 | tee output.txt
+          if grep -q "Hello from Buildpacks" output.txt; then
+            echo "✅ KIND Deployment Test Passed"
+          else
+            echo "❌ KIND Deployment Failed"; exit 1
+          fi
