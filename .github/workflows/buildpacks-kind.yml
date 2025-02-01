@@ -69,12 +69,12 @@ jobs:
         
       - name: Deploy to KIND
         run: |
-          kubectl create deployment buildpacks-demo --image=buildpacks-nodejs-app:${{ env.IMAGE_TAG }}
-          kubectl set image deployment/buildpacks-demo buildpacks-demo=buildpacks-nodejs-app:${{ env.IMAGE_TAG }}
-          kubectl expose deployment buildpacks-demo --type=NodePort --port=3000
+          kubectl create deployment buildpacks-nodejs-app --image=buildpacks-nodejs-app:${{ env.IMAGE_TAG }}
+          kubectl set image deployment/buildpacks-nodejs-app buildpacks-demo=buildpacks-nodejs-app:${{ env.IMAGE_TAG }}
+          kubectl expose deployment buildpacks-nodejs-app --type=NodePort --port=3000
           kubectl get pods -o wide
           kubectl get deployments -o wide
-          kubectl describe deployment buildpacks-demo
+          kubectl describe deployment buildpacks-nodejs-app
           
       - name: Fetch Pod Logs
         run: |
