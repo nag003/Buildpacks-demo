@@ -69,20 +69,21 @@ jobs:
         
       - name: Deploy to KIND
         run: |
-          kubectl create deployment buildpacks-nodejs-app --image=buildpacks-nodejs-app:${{ env.IMAGE_TAG }}
-          kubectl expose deployment buildpacks-nodejs-app --type=NodePort --port=3000 
+          kubectl create deployment buildpacks-demo --image=buildpacks-nodejs-app:${{ env.IMAGE_TAG }} --dry-run=client -o yaml | kubectl apply -f -
+          kubectl set image deployment/buildpacks-demo buildpacks-demo=buildpacks-nodejs-app:${{ env.IMAGE_TAG }}
+          kubectl expose deployment buildpacks-demo --type=NodePort --port=3000
           kubectl get pods -o wide
           kubectl get deployments -o wide
-          kubectl describe deployment buildpacks-nodejs-app
+          kubectl describe deployment buildpacks-demo
           
-      #- name: Fetch Pod Logs
-        #run: |
-          #POD_NAME=$(kubectl get pods --selector=app=buildpacks-nodejs-app -o jsonpath="{.items[0].metadata.name}")
-          #kubectl logs $POD_NAME
+      - name: Fetch Pod Logs
+        run: |
+          POD_NAME=$(kubectl get pods --selector=app=buildpacks-nodejs-app -o jsonpath="{.items[0].metadata.name}")
+          kubectl logs $POD_NAME
 
 
-      #- name: Wait for Deployment
-        #run: kubectl wait --for=condition=available --timeout=80s deployment/buildpacks-nodejs-app
+      - name: Wait for Deployment
+        run: kubectl wait --for=condition=available --timeout=120s deployment/buildpacks-nodejs-app
 
       - name: Test the Application
         run: |
