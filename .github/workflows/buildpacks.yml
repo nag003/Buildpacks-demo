@@ -1,0 +1,51 @@
+name: BuildPacks Ci/Cd
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Chechout Repository
+        uses: actions/checkout@v4
+        
+      - name: Install Pack CLI
+        run: |
+          curl -sSL "https://github.com/buildpacks/pack/releases/latest/download/pack-linux-amd64.tgz" | tar -xz -C /usr/local/bin
+          pack --version
+          
+      - name: Build Image Using BuildPacks
+        run: |
+          pack build ghcr.io/${{ github.repository }} --builder paketobuildpacks/builder:base
+          
+      - name: Login to GithUb Continer Registry
+        run: echo "${{ secrets.GA_TOKEN }}" | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
+        
+      - name: Push image to Github Container Registry
+        run: docker push ghcr.io/${{ github.repository }}
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
