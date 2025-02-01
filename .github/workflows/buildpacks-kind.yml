@@ -73,7 +73,7 @@ jobs:
           kubectl expose deployment buildpacks-nodejs-app --type=NodePort --port=3000
 
       - name: Wait for Deployment
-        run: kubectl wait --for=condition=available --timeout=60s deployment/buildpacks-nodejs-app
+        run: kubectl wait --for=condition=available --timeout=10s deployment/buildpacks-nodejs-app
 
       - name: Test the Application
         run: |
