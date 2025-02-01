@@ -1,0 +1,109 @@
+name: Build Buildpacks Demo APP CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Tag for the Docker image"
+        required: false
+        default: "latest"
+
+jobs:
+  test-buildpacks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Pack CLI
+        run: |
+          curl -sSL "https://github.com/buildpacks/pack/releases/download/v0.36.4/pack-v0.36.4-linux.tgz" | sudo tar -C /usr/local/bin/ --no-same-owner -xzv pack
+          pack --version
+
+      - name: Install KIND
+        run: |
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/latest/kind-linux-amd64
+          chmod +x ./kind
+          sudo mv ./kind /usr/local/bin/kind
+          kind --version
+
+      - name: Create KIND Cluster
+        run: kind create cluster --name buildpacks-test
+
+      - name: Set Image Tag
+        id: vars
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ github.event.inputs.image_tag }}" ]]; then
+            echo "IMAGE_TAG=${{ github.event.inputs.image_tag }}" >> $GITHUB_ENV
+          else
+            echo "IMAGE_TAG=latest" >> $GITHUB_ENV
+          fi
+          echo "SHA_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      - name: Build image using Buildpacks
+        run: |
+          pack build buildpacks-nodejs-app:${{ env.IMAGE_TAG }} --builder paketobuildpacks/builder:base
+          pack build buildpacks-nodejs-app:${{ env.SHA_TAG }} --builder paketobuildpacks/builder:base
+
+      - name: Log Docker Image Details
+        run: docker images
+
+      - name: Run the Container Locally
+        run: |
+          docker run -d --name test-container -p 3000:3000 buildpacks-nodejs-app:${{ env.IMAGE_TAG }}
+          sleep 5
+
+      - name: Check Container Logs
+        run: docker logs test-container
+
+      - name: Stop and Remove Test Container
+        run: docker rm -f test-container
+
+      - name: Load image into KIND cluster
+        run: kind load docker-image buildpacks-nodejs-app:${{ env.IMAGE_TAG }} --name buildpacks-test
+
+      - name: Deploy to KIND
+        run: |
+          kubectl create deployment buildpacks-nodejs-app --image=buildpacks-nodejs-app:${{ env.IMAGE_TAG }}
+          kubectl expose deployment buildpacks-nodejs-app --type=NodePort --port=3000
+
+      - name: Wait for Deployment
+        run: kubectl wait --for=condition=available --timeout=60s deployment/buildpacks-nodejs-app
+
+      - name: Test the Application
+        run: |
+          kubectl port-forward svc/buildpacks-nodejs-app 3000:3000 &
+          sleep 5
+          curl -s http://localhost:3000 | tee output.txt
+
+      - name: Validate Output
+        run: |
+          if grep -q "Hello from Buildpacks" output.txt; then
+            echo "✅ Test Passed"
+          else
+            echo "❌ Test Failed"; exit 1
+          fi
+
+  push-to-dockerhub:
+    needs: test-buildpacks
+    runs-on: ubuntu-latest
+    if: success()
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+      - name: Push Image to Docker Hub
+        run: |
+          docker tag buildpacks-nodejs-app:${{ env.IMAGE_TAG }} ${{ secrets.DOCKERHUB_USERNAME }}/buildpacks-nodejs-app:${{ env.IMAGE_TAG }}
+          docker tag buildpacks-nodejs-app:${{ env.SHA_TAG }} ${{ secrets.DOCKERHUB_USERNAME }}/buildpacks-nodejs-app:${{ env.SHA_TAG }}
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/buildpacks-nodejs-app:${{ env.IMAGE_TAG }}
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/buildpacks-nodejs-app:${{ env.SHA_TAG }}

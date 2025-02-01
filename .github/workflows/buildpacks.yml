@@ -5,6 +5,11 @@ on:
     branches:
       - main
   pull_request:
+  workflow_dispatch:
+    inputs:
+      description: "Tag for the Docker image"
+      required: false
+      default: latest
 
 jobs:
   build-and-push:
@@ -18,16 +23,31 @@ jobs:
         run: |
           curl -sSL "https://github.com/buildpacks/pack/releases/download/v0.36.4/pack-v0.36.4-linux.tgz" | sudo tar -C /usr/local/bin/ --no-same-owner -xzv pack
           pack --version
-          
-      - name: Build Image Using BuildPacks
+
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+      - name: Set Image Tag
+        id: vars
         run: |
-          pack build ghcr.io/${{ github.repository }} --builder paketobuildpacks/builder:base
-          
-      - name: Login to GithUb Continer Registry
-        run: echo "${{ secrets.GA_TOKEN }}" | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
-        
-      - name: Push image to Github Container Registry
-        run: docker push ghcr.io/${{ github.repository }}
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ github.event.inputs.image_tag }}" ]]; then
+            echo "IMAGE_TAG=${{ github.event.inputs.image_tag }}" >> $GITHUB_ENV
+
+      - name: Build image using Buildpacks
+        run: |
+          pack build ${{ secrets.DOCKERHUB_USERNAME }}/buildpacks-nodejs-app:${{ env.IMAGE_TAG }} --builder paketobuildpacks/builder:base
+          pack build ${{ secrets.DOCKERHUB_USERNAME }}/buildpacks-nodejs-app:${{ env.SHA_TAG }} --builder paketobuildpacks/builder:base
+
+      - name: Push image to Docker Hub
+        run: |
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/buildpacks-nodejs-app:${{ env.IMAGE_TAG }}
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/buildpacks-nodejs-app:${{ env.SHA_TAG }}
+            
+          else
+            echo "IMAGE_TAG=latest" >> $GITHUB_ENV
+          fi
+          echo "SHA_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
+         
       
       
       
