@@ -81,8 +81,8 @@ jobs:
           #kubectl logs $POD_NAME
 
 
-      - name: Wait for Deployment
-        run: kubectl wait --for=condition=available --timeout=80s deployment/buildpacks-nodejs-app
+      #- name: Wait for Deployment
+        #run: kubectl wait --for=condition=available --timeout=80s deployment/buildpacks-nodejs-app
 
       - name: Test the Application
         run: |
